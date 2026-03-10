@@ -14,7 +14,7 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue';
     :item="{
       title: 'Product Listing',
       icon: 'bx-layout',
-      to: '/products',
+      to: '/product',
     }"
   />
 </template>
