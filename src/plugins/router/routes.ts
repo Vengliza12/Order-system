@@ -8,9 +8,21 @@ export const routes = [
         path: 'dashboard',
         component: () => import('@/pages/dashboard.vue'),
       },
-       {
-        path: 'products',
-        component: () => import('@/pages/products.vue'),
+      {
+        path: 'product',
+        component: () => import('@/pages/product/index.vue'),
+      },
+      {
+        path: 'product/create',
+        component: () => import('@/pages/product/create.vue'),
+      },
+      {
+        path: 'product/view/:id',
+        component: () => import('@/pages/product/view/[id].vue'),
+      },
+      {
+        path: 'product/edit/:id',
+        component: () => import('@/pages/product/edit/[id].vue'),
       },
       {
         path: 'account-settings',
