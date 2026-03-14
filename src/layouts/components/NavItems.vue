@@ -12,6 +12,13 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
   />
   <VerticalNavLink
     :item="{
+      title: 'Tables',
+      icon: 'bx-grid-alt',
+      to: '/table',
+    }"
+  />
+  <VerticalNavLink
+    :item="{
       title: 'Categories',
       icon: 'bx-layout',
       to: '/categories',
@@ -22,6 +29,13 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
       title: 'Product Listing',
       icon: 'bx-layout',
       to: '/product',
+    }"
+  />
+  <VerticalNavLink
+    :item="{
+      title: 'Orders',
+      icon: 'bx-layout',
+      to: '/orders',
     }"
   />
 </template>
