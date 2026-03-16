@@ -253,16 +253,10 @@ function getImageAlt(item, header) {
     <!-- Header -->
     <div class="table-header">
       <div>
-        <h2
-          v-if="title"
-          class="title"
-        >
+        <h2 v-if="title" class="title">
           {{ title }}
         </h2>
-        <p
-          v-if="subtitle"
-          class="subtitle"
-        >
+        <p v-if="subtitle" class="subtitle">
           {{ subtitle }}
         </p>
       </div>
@@ -291,10 +285,7 @@ function getImageAlt(item, header) {
     </div>
 
     <!-- Table -->
-    <VTable
-      class="custom-table"
-      striped="even"
-    >
+    <VTable class="custom-table" striped="even">
       <thead>
         <tr>
           <th
@@ -303,6 +294,7 @@ function getImageAlt(item, header) {
           >
             {{ header.title }}
           </th>
+
           <th
             v-if="showActions"
             class="text-center"
@@ -343,7 +335,6 @@ function getImageAlt(item, header) {
             v-if="showActions"
             class="text-center action-buttons"
           >
-            <!-- View -->
             <VBtn
               v-if="showViewAction"
               icon="bx-show"
@@ -354,7 +345,6 @@ function getImageAlt(item, header) {
               @click="viewItem(item)"
             />
 
-            <!-- Edit -->
             <VBtn
               v-if="showEditAction"
               icon="bx-edit"
@@ -365,7 +355,6 @@ function getImageAlt(item, header) {
               @click="editItem(item)"
             />
 
-            <!-- Delete -->
             <VBtn
               v-if="showDeleteAction"
               icon="bx-trash"
@@ -417,7 +406,7 @@ function getImageAlt(item, header) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-block-end: 18px;
+  margin-bottom: 18px;
 }
 
 .title {
@@ -429,7 +418,7 @@ function getImageAlt(item, header) {
 .subtitle {
   color: #777;
   font-size: 13px;
-  margin-block-start: 4px;
+  margin-top: 4px;
 }
 
 .header-actions {
@@ -439,7 +428,7 @@ function getImageAlt(item, header) {
 }
 
 .search-input {
-  inline-size: 220px;
+  width: 220px;
 }
 
 .custom-table {
@@ -463,8 +452,8 @@ function getImageAlt(item, header) {
 .table-image {
   display: block;
   border-radius: 8px;
-  block-size: 48px;
-  inline-size: 48px;
+  width: 48px;
+  height: 48px;
   object-fit: cover;
 }
 
@@ -555,8 +544,13 @@ function getImageAlt(item, header) {
 }
 
 .action-buttons v-btn {
-  margin-block: 0;
-  margin-inline: 2px;
+  margin: 0 2px;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 
 .pagination-wrap {

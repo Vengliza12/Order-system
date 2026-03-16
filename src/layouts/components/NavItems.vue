@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
+import VerticalNavLink from '@layouts/components/VerticalNavLink.vue';
 </script>
 
 <template>

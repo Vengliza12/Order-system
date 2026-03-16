@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import Tables from '@/components/TableStatic.vue'
 import { Icon } from '@iconify/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import Tables from '@/components/TableStatic.vue'
 
 interface CategoryApiItem {
   id: number
