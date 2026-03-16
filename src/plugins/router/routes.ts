@@ -41,6 +41,38 @@ export const routes = [
         component: () => import('@/pages/categories/edit/[id].vue'),
       },
       {
+        path: 'orders',
+        component: () => import('@/pages/orders/index.vue'),
+      },
+      {
+        path: 'orders/create',
+        component: () => import('@/pages/orders/create.vue'),
+      },
+      {
+        path: 'orders/view/:id',
+        component: () => import('@/pages/orders/view/[id].vue'),
+      },
+      {
+        path: 'orders/edit/:id',
+        component: () => import('@/pages/orders/edit/[id].vue'),
+      },
+      {
+        path: 'table',
+        component: () => import('@/pages/table/index.vue'),
+      },
+      {
+        path: 'table/create',
+        component: () => import('@/pages/table/create.vue'),
+      },
+      {
+        path: 'table/view/:id',
+        component: () => import('@/pages/table/view/[id].vue'),
+      },
+      {
+        path: 'table/edit/:id',
+        component: () => import('@/pages/table/edit/[id].vue'),
+      },
+      {
         path: 'account-settings',
         component: () => import('@/pages/account-settings.vue'),
       },

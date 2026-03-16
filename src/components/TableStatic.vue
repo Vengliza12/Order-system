@@ -43,6 +43,38 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  showViewAction: {
+    type: Boolean,
+    default: true,
+  },
+  showEditAction: {
+    type: Boolean,
+    default: true,
+  },
+  showDeleteAction: {
+    type: Boolean,
+    default: true,
+  },
+  disableViewAction: {
+    type: Boolean,
+    default: false,
+  },
+  disableEditAction: {
+    type: Boolean,
+    default: false,
+  },
+  disableDeleteAction: {
+    type: Boolean,
+    default: false,
+  },
+  enablePagination: {
+    type: Boolean,
+    default: true,
+  },
+  itemsPerPage: {
+    type: Number,
+    default: 5,
+  },
 })
 
 const emit = defineEmits(['create', 'view', 'edit', 'delete'])
@@ -50,8 +82,7 @@ const emit = defineEmits(['create', 'view', 'edit', 'delete'])
 const router = useRouter()
 
 const search = ref('')
-const page = ref(1)
-const itemsPerPage = 10
+const currentPage = ref(1)
 
 function extractItemsFromHeaders(headers) {
   const row = headers.reduce((result, header) => {
@@ -110,18 +141,42 @@ const filteredItems = computed(() => {
   )
 })
 
-watch(search, () => {
-  page.value = 1
-})
+const totalPages = computed(() => {
+  if (!props.enablePagination)
+    return 1
 
-const pageCount = computed(() => {
-  return Math.ceil(filteredItems.value.length / itemsPerPage)
+  return Math.max(1, Math.ceil(filteredItems.value.length / props.itemsPerPage))
 })
 
 const paginatedItems = computed(() => {
-  const start = (page.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return filteredItems.value.slice(start, end)
+  if (!props.enablePagination)
+    return filteredItems.value
+
+  const start = (currentPage.value - 1) * props.itemsPerPage
+
+  return filteredItems.value.slice(start, start + props.itemsPerPage)
+})
+
+const paginationMeta = computed(() => {
+  if (filteredItems.value.length === 0)
+    return '0-0 of 0'
+
+  if (!props.enablePagination)
+    return `1-${filteredItems.value.length} of ${filteredItems.value.length}`
+
+  const start = (currentPage.value - 1) * props.itemsPerPage + 1
+  const end = Math.min(currentPage.value * props.itemsPerPage, filteredItems.value.length)
+
+  return `${start}-${end} of ${filteredItems.value.length}`
+})
+
+watch(search, () => {
+  currentPage.value = 1
+})
+
+watch(totalPages, value => {
+  if (currentPage.value > value)
+    currentPage.value = value
 })
 
 function goToCreate() {
@@ -149,6 +204,43 @@ function getItemKey(item, index) {
 
 function isImageColumn(header) {
   return header.type === 'image'
+}
+
+function isStatusColumn(header) {
+  return header.type === 'status'
+}
+
+function getStatusClass(value) {
+  const normalizedValue = String(value ?? '').toLowerCase()
+
+  if (normalizedValue === 'pending')
+    return 'status-badge status-pending'
+
+  if (normalizedValue === 'confirmed')
+    return 'status-badge status-confirmed'
+
+  if (normalizedValue === 'preparing')
+    return 'status-badge status-preparing'
+
+  if (normalizedValue === 'served')
+    return 'status-badge status-served'
+
+  if (normalizedValue === 'paid')
+    return 'status-badge status-paid'
+
+  if (normalizedValue === 'active')
+    return 'status-badge status-active'
+
+  if (normalizedValue === 'inactive')
+    return 'status-badge status-inactive'
+
+  if (normalizedValue === 'completed')
+    return 'status-badge status-completed'
+
+  if (normalizedValue === 'cancelled')
+    return 'status-badge status-cancelled'
+
+  return 'status-badge status-default'
 }
 
 function getImageAlt(item, header) {
@@ -228,7 +320,12 @@ function getImageAlt(item, header) {
               :alt="getImageAlt(item, header)"
               class="table-image"
             >
-
+            <span
+              v-else-if="isStatusColumn(header)"
+              :class="getStatusClass(item[header.key])"
+            >
+              {{ item[header.key] }}
+            </span>
             <span v-else>
               {{ item[header.key] }}
             </span>
@@ -239,26 +336,32 @@ function getImageAlt(item, header) {
             class="text-center action-buttons"
           >
             <VBtn
+              v-if="showViewAction"
               icon="bx-show"
               size="small"
               variant="text"
               color="info"
+              :disabled="disableViewAction"
               @click="viewItem(item)"
             />
 
             <VBtn
+              v-if="showEditAction"
               icon="bx-edit"
               size="small"
               variant="text"
               color="primary"
+              :disabled="disableEditAction"
               @click="editItem(item)"
             />
 
             <VBtn
+              v-if="showDeleteAction"
               icon="bx-trash"
               size="small"
               variant="text"
               color="error"
+              :disabled="disableDeleteAction"
               @click="deleteItem(item)"
             />
           </td>
@@ -275,12 +378,17 @@ function getImageAlt(item, header) {
       </tbody>
     </VTable>
 
-    <!-- Pagination -->
-    <div class="pagination-wrapper">
+    <div
+      v-if="enablePagination && filteredItems.length > 0"
+      class="pagination-wrap"
+    >
+      <span class="pagination-meta">{{ paginationMeta }}</span>
+
       <VPagination
-        v-model="page"
-        :length="pageCount"
+        v-model="currentPage"
+        :length="totalPages"
         :total-visible="5"
+        density="comfortable"
       />
     </div>
   </div>
@@ -349,6 +457,79 @@ function getImageAlt(item, header) {
   object-fit: cover;
 }
 
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding-block: 7px;
+  padding-inline: 12px;
+  text-transform: capitalize;
+}
+
+.status-pending {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.status-completed {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.status-confirmed {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.status-preparing {
+  border-color: #f97316;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-served {
+  border-color: #14b8a6;
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
+.status-paid {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.status-active {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.status-inactive {
+  border-color: #64748b;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.status-cancelled {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.status-default {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: #475569;
+}
+
 .empty-state {
   color: #777;
 }
@@ -370,5 +551,18 @@ function getImageAlt(item, header) {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+.pagination-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-block-start: 18px;
+}
+
+.pagination-meta {
+  color: #64748b;
+  font-size: 13px;
 }
 </style>
