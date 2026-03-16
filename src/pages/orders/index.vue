@@ -251,6 +251,8 @@ onMounted(fetchOrders)
       :headers="headers"
       :items="tableItems"
       item-key="id"
+      :show-create-button="false"
+      create-label="Create"
       create-route="/orders/create"
       @view="handleView"
       @edit="handleEdit"

@@ -253,10 +253,16 @@ function getImageAlt(item, header) {
     <!-- Header -->
     <div class="table-header">
       <div>
-        <h2 v-if="title" class="title">
+        <h2
+          v-if="title"
+          class="title"
+        >
           {{ title }}
         </h2>
-        <p v-if="subtitle" class="subtitle">
+        <p
+          v-if="subtitle"
+          class="subtitle"
+        >
           {{ subtitle }}
         </p>
       </div>
@@ -285,7 +291,10 @@ function getImageAlt(item, header) {
     </div>
 
     <!-- Table -->
-    <VTable class="custom-table" striped="even">
+    <VTable
+      class="custom-table"
+      striped="even"
+    >
       <thead>
         <tr>
           <th
@@ -387,8 +396,9 @@ function getImageAlt(item, header) {
       <VPagination
         v-model="currentPage"
         :length="totalPages"
-        :total-visible="5"
+        :total-visible="1"
         density="comfortable"
+        show-arrows
       />
     </div>
   </div>
@@ -406,7 +416,7 @@ function getImageAlt(item, header) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
+  margin-block-end: 18px;
 }
 
 .title {
@@ -418,7 +428,7 @@ function getImageAlt(item, header) {
 .subtitle {
   color: #777;
   font-size: 13px;
-  margin-top: 4px;
+  margin-block-start: 4px;
 }
 
 .header-actions {
@@ -428,7 +438,7 @@ function getImageAlt(item, header) {
 }
 
 .search-input {
-  width: 220px;
+  inline-size: 220px;
 }
 
 .custom-table {
@@ -452,8 +462,8 @@ function getImageAlt(item, header) {
 .table-image {
   display: block;
   border-radius: 8px;
-  width: 48px;
-  height: 48px;
+  block-size: 48px;
+  inline-size: 48px;
   object-fit: cover;
 }
 
@@ -544,13 +554,14 @@ function getImageAlt(item, header) {
 }
 
 .action-buttons v-btn {
-  margin: 0 2px;
+  margin-block: 0;
+  margin-inline: 2px;
 }
 
 .pagination-wrapper {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-block-start: 16px;
 }
 
 .pagination-wrap {

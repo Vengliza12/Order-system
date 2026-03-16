@@ -24,9 +24,10 @@ const router = useRouter()
 const headers = [
   { title: '#', key: 'id' },
   { title: 'QR Code', key: 'qr_image_url', type: 'image' },
-  { title: 'Code', key: 'code' },
   { title: 'Name', key: 'name' },
-  { title: 'Status', key: 'status', type: 'status' },
+  { title: 'Code', key: 'code' },
+
+  // { title: 'Status', key: 'status', type: 'status' },
 
   // { title: 'Created At', key: 'created_at' },
 ]
