@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({
@@ -50,6 +50,8 @@ const emit = defineEmits(['create', 'view', 'edit', 'delete'])
 const router = useRouter()
 
 const search = ref('')
+const page = ref(1)
+const itemsPerPage = 10
 
 function extractItemsFromHeaders(headers) {
   const row = headers.reduce((result, header) => {
@@ -108,6 +110,20 @@ const filteredItems = computed(() => {
   )
 })
 
+watch(search, () => {
+  page.value = 1
+})
+
+const pageCount = computed(() => {
+  return Math.ceil(filteredItems.value.length / itemsPerPage)
+})
+
+const paginatedItems = computed(() => {
+  const start = (page.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredItems.value.slice(start, end)
+})
+
 function goToCreate() {
   emit('create')
 
@@ -145,16 +161,10 @@ function getImageAlt(item, header) {
     <!-- Header -->
     <div class="table-header">
       <div>
-        <h2
-          v-if="title"
-          class="title"
-        >
+        <h2 v-if="title" class="title">
           {{ title }}
         </h2>
-        <p
-          v-if="subtitle"
-          class="subtitle"
-        >
+        <p v-if="subtitle" class="subtitle">
           {{ subtitle }}
         </p>
       </div>
@@ -183,10 +193,7 @@ function getImageAlt(item, header) {
     </div>
 
     <!-- Table -->
-    <VTable
-      class="custom-table"
-      striped="even"
-    >
+    <VTable class="custom-table" striped="even">
       <thead>
         <tr>
           <th
@@ -195,6 +202,7 @@ function getImageAlt(item, header) {
           >
             {{ header.title }}
           </th>
+
           <th
             v-if="showActions"
             class="text-center"
@@ -206,7 +214,7 @@ function getImageAlt(item, header) {
 
       <tbody>
         <tr
-          v-for="(item, index) in filteredItems"
+          v-for="(item, index) in paginatedItems"
           :key="getItemKey(item, index)"
         >
           <td
@@ -220,6 +228,7 @@ function getImageAlt(item, header) {
               :alt="getImageAlt(item, header)"
               class="table-image"
             >
+
             <span v-else>
               {{ item[header.key] }}
             </span>
@@ -229,7 +238,6 @@ function getImageAlt(item, header) {
             v-if="showActions"
             class="text-center action-buttons"
           >
-            <!-- View -->
             <VBtn
               icon="bx-show"
               size="small"
@@ -238,7 +246,6 @@ function getImageAlt(item, header) {
               @click="viewItem(item)"
             />
 
-            <!-- Edit -->
             <VBtn
               icon="bx-edit"
               size="small"
@@ -247,7 +254,6 @@ function getImageAlt(item, header) {
               @click="editItem(item)"
             />
 
-            <!-- Delete -->
             <VBtn
               icon="bx-trash"
               size="small"
@@ -258,7 +264,7 @@ function getImageAlt(item, header) {
           </td>
         </tr>
 
-        <tr v-if="filteredItems.length === 0">
+        <tr v-if="paginatedItems.length === 0">
           <td
             :colspan="resolvedHeaders.length + (showActions ? 1 : 0)"
             class="empty-state text-center"
@@ -268,6 +274,15 @@ function getImageAlt(item, header) {
         </tr>
       </tbody>
     </VTable>
+
+    <!-- Pagination -->
+    <div class="pagination-wrapper">
+      <VPagination
+        v-model="page"
+        :length="pageCount"
+        :total-visible="5"
+      />
+    </div>
   </div>
 </template>
 
@@ -283,7 +298,7 @@ function getImageAlt(item, header) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-block-end: 18px;
+  margin-bottom: 18px;
 }
 
 .title {
@@ -295,7 +310,7 @@ function getImageAlt(item, header) {
 .subtitle {
   color: #777;
   font-size: 13px;
-  margin-block-start: 4px;
+  margin-top: 4px;
 }
 
 .header-actions {
@@ -305,7 +320,7 @@ function getImageAlt(item, header) {
 }
 
 .search-input {
-  inline-size: 220px;
+  width: 220px;
 }
 
 .custom-table {
@@ -329,8 +344,8 @@ function getImageAlt(item, header) {
 .table-image {
   display: block;
   border-radius: 8px;
-  block-size: 48px;
-  inline-size: 48px;
+  width: 48px;
+  height: 48px;
   object-fit: cover;
 }
 
@@ -348,7 +363,12 @@ function getImageAlt(item, header) {
 }
 
 .action-buttons v-btn {
-  margin-block: 0;
-  margin-inline: 2px;
+  margin: 0 2px;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 </style>

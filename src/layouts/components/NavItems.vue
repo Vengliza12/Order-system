@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
+import VerticalNavLink from '@layouts/components/VerticalNavLink.vue';
 </script>
 
 <template>
@@ -22,6 +22,13 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
       title: 'Product Listing',
       icon: 'bx-layout',
       to: '/product',
+    }"
+  />
+    <VerticalNavLink
+    :item="{
+      title: 'Table',
+      icon: 'bx-layout',
+      to: '/table-qr',
     }"
   />
 </template>

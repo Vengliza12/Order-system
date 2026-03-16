@@ -64,6 +64,10 @@ export const routes = [
         path: 'form-layouts',
         component: () => import('@/pages/form-layouts.vue'),
       },
+        {
+        path: 'table-qr',
+        component: () => import('@/pages/table-qr/index.vue'),
+      },
     ],
   },
   {
