@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import VerticalNavLink from '@layouts/components/VerticalNavLink.vue';
+import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
 </script>
 
 <template>
@@ -7,34 +7,34 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue';
     :item="{
       title: 'Dashboard',
       to: '/dashboard',
-      icon: 'bx-home-smile',
+      icon: 'bx-grid-alt',
     }"
   />
   <VerticalNavLink
     :item="{
       title: 'Tables',
-      icon: 'bx-grid-alt',
+      icon: 'bx-table',
       to: '/table',
     }"
   />
   <VerticalNavLink
     :item="{
       title: 'Categories',
-      icon: 'bx-layout',
+      icon: 'bx-category',
       to: '/categories',
     }"
   />
   <VerticalNavLink
     :item="{
       title: 'Product Listing',
-      icon: 'bx-layout',
+      icon: 'bx-box',
       to: '/product',
     }"
   />
   <VerticalNavLink
     :item="{
       title: 'Orders',
-      icon: 'bx-layout',
+      icon: 'bx-cart-alt',
       to: '/orders',
     }"
   />

@@ -1,23 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-
-interface ProductDetail {
-  id: number
-  name: string
-  description: string
-  category: string
-  price: number
-  stock: number
-  image_url: string
-  created_at: string
-}
+import { useProductStore } from '@/stores'
 
 const route = useRoute()
 const router = useRouter()
+const productStore = useProductStore()
+const { detailError, detailLoading } = storeToRefs(productStore)
 
 const productId = computed(() => String(route.params.id ?? ''))
-const apiUrl = computed(() => `http://10.1.42.168:8000/products/${productId.value}`)
 
 const form = reactive({
   id: '',
@@ -29,40 +21,19 @@ const form = reactive({
   image_url: '',
 })
 
-const loading = ref(false)
-const errorMessage = ref('')
-
 async function fetchProduct() {
-  loading.value = true
-  errorMessage.value = ''
+  const product = await productStore.fetchProductById(productId.value)
 
-  try {
-    const response = await fetch(apiUrl.value, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+  if (!product)
+    return
 
-    if (!response.ok)
-      throw new Error(`Request failed with status ${response.status}`)
-
-    const data: ProductDetail = await response.json()
-
-    form.id = String(data.id)
-    form.name = data.name
-    form.description = data.description
-    form.category = data.category
-    form.price = data.price
-    form.stock = data.stock
-    form.image_url = data.image_url
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to fetch product'
-  }
-  finally {
-    loading.value = false
-  }
+  form.id = String(product.id)
+  form.name = product.name
+  form.description = product.description
+  form.category = product.category
+  form.price = product.price
+  form.stock = product.stock
+  form.image_url = product.image_url
 }
 
 onMounted(fetchProduct)
@@ -84,17 +55,17 @@ onMounted(fetchProduct)
     <VCard class="form-card">
       <VCardText>
         <div
-          v-if="loading"
+          v-if="detailLoading"
           class="status-message"
         >
           Loading product...
         </div>
 
         <div
-          v-else-if="errorMessage"
+          v-else-if="detailError"
           class="status-message error-message"
         >
-          {{ errorMessage }}
+          {{ detailError }}
         </div>
 
         <VForm v-else>
@@ -181,16 +152,6 @@ onMounted(fetchProduct)
               />
             </VCol>
 
-            <!--
-              <VCol cols="12">
-              <VTextField
-              v-model="form.image_url"
-              label="Image URL"
-              readonly
-              />
-              </VCol>
-            -->
-
             <VCol
               v-if="form.image_url"
               cols="12"
@@ -255,15 +216,10 @@ onMounted(fetchProduct)
 }
 
 .detail-id-value {
-  /* border-radius: 999px; */
-
-  /* background: #eff6ff; */
   color: #6e6e6e;
   font-size: 16px;
   font-weight: 700;
   padding-block: 6px;
-
-  /* padding-inline: 12px; */
 }
 
 .detail-actions {

@@ -1,25 +1,27 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useTableStore } from '@/stores'
 import Tables from '@/components/TableStatic.vue'
-
-interface TableApiItem {
-  id: number
-  name: string
-  code: string
-  is_active: boolean
-  qr_url: string
-  created_at: string
-}
 
 interface DeleteTarget {
   id: number
   name: string
 }
 
-const API_URL = 'http://10.1.42.168:8000/tables/'
 const router = useRouter()
+const tableStore = useTableStore()
+
+const {
+  cards,
+  deleting,
+  listError,
+  listLoading,
+  mutationError,
+  tableItems,
+} = storeToRefs(tableStore)
 
 const headers = [
   { title: '#', key: 'id' },
@@ -32,115 +34,8 @@ const headers = [
   // { title: 'Created At', key: 'created_at' },
 ]
 
-const tables = ref<TableApiItem[]>([])
-const loading = ref(false)
-const errorMessage = ref('')
 const deleteDialog = ref(false)
 const deleteTarget = ref<DeleteTarget | null>(null)
-const deleting = ref(false)
-
-function formatDate(value: string) {
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime()))
-    return value
-
-  return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
-}
-
-function getQrImageUrl(code: string) {
-  return `http://10.1.42.168:8000/tables/qr/${code}`
-}
-
-const tableItems = computed(() => {
-  return tables.value.map(table => ({
-    id: table.id,
-    name: table.name,
-    code: table.code,
-    status: table.is_active ? 'active' : 'inactive',
-    qr_image_url: getQrImageUrl(table.code),
-    qr_url: table.qr_url,
-    created_at: formatDate(table.created_at),
-  }))
-})
-
-const cards = computed(() => {
-  const totalTables = tables.value.length
-  const activeTables = tables.value.filter(table => table.is_active).length
-  const inactiveTables = tables.value.filter(table => !table.is_active).length
-
-  const newTables = tables.value.filter(table => {
-    const createdDate = new Date(table.created_at)
-    const ageInMs = Date.now() - createdDate.getTime()
-
-    return ageInMs <= 7 * 24 * 60 * 60 * 1000
-  }).length
-
-  return [
-    {
-      title: 'Total Tables',
-      value: totalTables,
-      icon: 'mdi:table-furniture',
-      color: '#3b82f6',
-    },
-    {
-      title: 'Active Tables',
-      value: activeTables,
-      icon: 'mdi:check-circle',
-      color: '#22c55e',
-    },
-    {
-      title: 'Inactive Tables',
-      value: inactiveTables,
-      icon: 'mdi:close-circle',
-      color: '#ef4444',
-    },
-    {
-      title: 'New Tables',
-      value: newTables,
-      icon: 'mdi:new-box',
-      color: '#f59e0b',
-    },
-  ]
-})
-
-async function fetchTables() {
-  loading.value = true
-  errorMessage.value = ''
-
-  try {
-    const response = await fetch(API_URL, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
-
-    if (!response.ok)
-      throw new Error(`Request failed with status ${response.status}`)
-
-    const data = await response.json()
-
-    if (Array.isArray(data))
-      tables.value = data
-    else if (data && Array.isArray(data.results))
-      tables.value = data.results
-    else if (data && Array.isArray(data.data))
-      tables.value = data.data
-    else
-      tables.value = []
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to fetch tables'
-    tables.value = []
-  }
-  finally {
-    loading.value = false
-  }
-}
 
 function handleView(item: { id: number }) {
   router.push(`/table/view/${item.id}`)
@@ -164,33 +59,17 @@ async function confirmDelete() {
   if (!deleteTarget.value)
     return
 
-  deleting.value = true
+  const deleted = await tableStore.deleteTable(deleteTarget.value.id)
 
-  try {
-    const response = await fetch(`${API_URL}${deleteTarget.value.id}/`, {
-      method: 'DELETE',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+  deleteDialog.value = false
 
-    if (!response.ok)
-      throw new Error(`Delete failed with status ${response.status}`)
-
-    deleteDialog.value = false
+  if (deleted)
     deleteTarget.value = null
-    await fetchTables()
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to delete table'
-    deleteDialog.value = false
-  }
-  finally {
-    deleting.value = false
-  }
 }
 
-onMounted(fetchTables)
+onMounted(() => {
+  tableStore.fetchTables()
+})
 </script>
 
 <template>
@@ -216,17 +95,17 @@ onMounted(fetchTables)
     </div>
 
     <p
-      v-if="loading"
+      v-if="listLoading"
       class="status-text"
     >
       Loading tables...
     </p>
 
     <p
-      v-else-if="errorMessage"
+      v-else-if="listError || mutationError"
       class="status-text error-text"
     >
-      {{ errorMessage }}
+      {{ listError || mutationError }}
     </p>
 
     <Tables
@@ -234,6 +113,7 @@ onMounted(fetchTables)
       subtitle="Manage and view all table headers"
       :headers="headers"
       :items="tableItems"
+      :search-keys="['id', 'name', 'code']"
       item-key="id"
       create-route="/table/create"
       disable-view-action

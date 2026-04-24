@@ -1,8 +1,14 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useOrderStore, useProductStore, useTableStore } from '@/stores'
 
-interface OrderItemDetail {
+const STATUS_OPTIONS = ['pending', 'confirmed', 'preparing', 'served', 'paid', 'cancelled']
+const TAX_RATE = 0.1
+const SERVICE_RATE = 0.05
+
+type ResolvedOrderItem = {
   id: number
   product_id: number
   product_name: string
@@ -11,34 +17,25 @@ interface OrderItemDetail {
   line_total: number
 }
 
-interface OrderDetail {
-  id: number
-  table_id: number
-  table_name: string
-  status: string
-  notes: string | null
-  subtotal: number
-  tax_amount: number
-  service_charge: number
-  total: number
-  invoice_number: string
-  items: OrderItemDetail[]
-  created_at: string
-}
-
-const STATUS_OPTIONS = ['pending', 'confirmed', 'preparing', 'served', 'paid', 'cancelled']
-
 const route = useRoute()
 const router = useRouter()
+const orderStore = useOrderStore()
+const tableStore = useTableStore()
+const productStore = useProductStore()
+const { detailError, detailLoading, mutationError, submitting } = storeToRefs(orderStore)
+const { items: tables } = storeToRefs(tableStore)
+const { items: products } = storeToRefs(productStore)
 
 const orderId = computed(() => String(route.params.id ?? ''))
-const apiUrl = computed(() => `http://10.1.42.168:8000/orders/${orderId.value}`)
-const statusApiUrl = computed(() => `http://10.1.42.168:8000/orders/${orderId.value}/status`)
+
+function isResolvedOrderItem(item: ResolvedOrderItem | null): item is ResolvedOrderItem {
+  return item !== null
+}
 
 const form = reactive({
   id: '',
   invoice_number: '',
-  table_id: 0,
+  table_id: null as number | null,
   table_name: '',
   status: 'pending',
   notes: '',
@@ -49,98 +46,140 @@ const form = reactive({
   created_at: '',
 })
 
-const items = ref<OrderItemDetail[]>([])
-const loading = ref(false)
-const submitting = ref(false)
-const errorMessage = ref('')
+const orderItems = ref<Array<{
+  product_id: number | null
+  quantity: number
+}>>([])
+
+const tableOptions = computed(() => {
+  return tables.value.map(table => ({
+    title: `${table.name} (${table.code})`,
+    value: table.id,
+  }))
+})
+
+const productOptions = computed(() => {
+  return products.value.map(product => ({
+    title: `${product.name} - $${Number(product.price).toFixed(2)}`,
+    value: product.id,
+  }))
+})
+
+const resolvedItems = computed(() => {
+  return orderItems.value
+    .map((item, index) => {
+      const product = products.value.find(entry => entry.id === item.product_id)
+
+      if (!product)
+        return null
+
+      const quantity = Math.max(1, Number(item.quantity) || 1)
+      const unitPrice = Number(product.price)
+
+      return {
+        id: index + 1,
+        product_id: product.id,
+        product_name: product.name,
+        quantity,
+        unit_price: unitPrice,
+        line_total: unitPrice * quantity,
+      }
+    })
+    .filter(isResolvedOrderItem)
+})
+
+const subtotal = computed(() => {
+  return resolvedItems.value.reduce((sum, item) => sum + item.line_total, 0)
+})
+
+const taxAmount = computed(() => subtotal.value * TAX_RATE)
+const serviceCharge = computed(() => subtotal.value * SERVICE_RATE)
+const total = computed(() => subtotal.value + taxAmount.value + serviceCharge.value)
 
 function formatCurrency(value: number) {
-  return `$${Number(value ?? 0).toFixed(2)}`
+  return orderStore.formatCurrency(value)
 }
 
 function formatDate(value: string) {
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime()))
-    return value
-
-  return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
+  return orderStore.formatCreatedAt(value)
 }
 
 async function fetchOrder() {
-  loading.value = true
-  errorMessage.value = ''
+  const order = await orderStore.fetchOrderById(orderId.value)
 
-  try {
-    const response = await fetch(apiUrl.value, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+  if (!order)
+    return
 
-    if (!response.ok)
-      throw new Error(`Failed to fetch order: ${response.status}`)
+  form.id = String(order.id)
+  form.invoice_number = order.invoice_number
+  form.table_id = order.table_id
+  form.table_name = order.table_name
+  form.status = order.status
+  form.notes = order.notes ?? ''
+  form.subtotal = order.subtotal
+  form.tax_amount = order.tax_amount
+  form.service_charge = order.service_charge
+  form.total = order.total
+  form.created_at = order.created_at
+  orderItems.value = (order.items ?? []).map(item => ({
+    product_id: item.product_id,
+    quantity: item.quantity,
+  }))
+}
 
-    const data: OrderDetail = await response.json()
+function addItemRow() {
+  orderItems.value.push({
+    product_id: null,
+    quantity: 1,
+  })
+}
 
-    form.id = String(data.id)
-    form.invoice_number = data.invoice_number
-    form.table_id = data.table_id
-    form.table_name = data.table_name
-    form.status = data.status
-    form.notes = data.notes ?? ''
-    form.subtotal = data.subtotal
-    form.tax_amount = data.tax_amount
-    form.service_charge = data.service_charge
-    form.total = data.total
-    form.created_at = data.created_at
-    items.value = data.items ?? []
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to fetch order'
-  }
-  finally {
-    loading.value = false
-  }
+function removeItemRow(index: number) {
+  orderItems.value.splice(index, 1)
+
+  if (!orderItems.value.length)
+    addItemRow()
 }
 
 async function submitForm() {
-  submitting.value = true
-  errorMessage.value = ''
+  const selectedTable = tables.value.find(table => table.id === form.table_id)
 
-  try {
-    const response = await fetch(statusApiUrl.value, {
-      method: 'PATCH',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        status: form.status,
-      }),
-    })
+  if (!selectedTable) {
+    orderStore.mutationError = 'Please select a table'
 
-    if (!response.ok) {
-      const errorJson = await response.json().catch(() => null)
-      const detail = errorJson?.detail ?? `Status ${response.status}`
-      throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
-    }
+    return
+  }
 
+  if (!resolvedItems.value.length) {
+    orderStore.mutationError = 'Please add at least one valid product'
+
+    return
+  }
+
+  const updated = await orderStore.updateOrder(orderId.value, {
+    table_id: selectedTable.id,
+    table_name: selectedTable.name,
+    status: form.status,
+    notes: form.notes.trim() || null,
+    items: resolvedItems.value,
+    subtotal: subtotal.value,
+    tax_amount: taxAmount.value,
+    service_charge: serviceCharge.value,
+    total: total.value,
+  })
+
+  if (updated)
     router.push('/orders')
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to update order'
-  }
-  finally {
-    submitting.value = false
-  }
 }
 
-onMounted(fetchOrder)
+onMounted(async () => {
+  await Promise.all([
+    tableStore.fetchTables(),
+    productStore.fetchProducts(),
+  ])
+
+  await fetchOrder()
+})
 </script>
 
 <template>
@@ -159,17 +198,17 @@ onMounted(fetchOrder)
     <VCard class="form-card">
       <VCardText>
         <div
-          v-if="loading"
+          v-if="detailLoading"
           class="status-message"
         >
           Loading order...
         </div>
 
         <div
-          v-else-if="errorMessage && !form.id"
+          v-else-if="detailError && !form.id"
           class="status-message error-message"
         >
-          {{ errorMessage }}
+          {{ detailError }}
         </div>
 
         <VForm
@@ -177,10 +216,10 @@ onMounted(fetchOrder)
           @submit.prevent="submitForm"
         >
           <div
-            v-if="errorMessage && form.id"
+            v-if="mutationError && form.id"
             class="status-message error-message mb-4"
           >
-            {{ errorMessage }}
+            {{ mutationError }}
           </div>
 
           <VRow>
@@ -241,10 +280,11 @@ onMounted(fetchOrder)
               cols="12"
               md="6"
             >
-              <VTextField
-                v-model="form.table_name"
-                label="Table Name"
-                readonly
+              <VSelect
+                v-model="form.table_id"
+                label="Table"
+                :items="tableOptions"
+                :disabled="tableOptions.length === 0"
               />
             </VCol>
 
@@ -264,48 +304,57 @@ onMounted(fetchOrder)
                 v-model="form.notes"
                 label="Notes"
                 rows="3"
-                readonly
               />
             </VCol>
 
             <VCol cols="12">
-              <div class="section-title">
-                Order Items
+              <div class="section-header">
+                <div class="section-title">
+                  Order Items
+                </div>
+                <VBtn
+                  type="button"
+                  size="small"
+                  color="primary"
+                  variant="tonal"
+                  @click="addItemRow"
+                >
+                  Add Item
+                </VBtn>
               </div>
+            </VCol>
 
-              <VTable class="items-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Product Code</th>
-                    <th>Product Name</th>
-                    <th>Qty</th>
-                    <th>Unit Price</th>
-                    <th>Line Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="item in items"
-                    :key="item.id"
-                  >
-                    <td>{{ item.id }}</td>
-                    <td>{{ item.product_id }}</td>
-                    <td>{{ item.product_name }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td>{{ formatCurrency(item.unit_price) }}</td>
-                    <td>{{ formatCurrency(item.line_total) }}</td>
-                  </tr>
-                  <tr v-if="items.length === 0">
-                    <td
-                      colspan="6"
-                      class="empty-cell"
-                    >
-                      No order items
-                    </td>
-                  </tr>
-                </tbody>
-              </VTable>
+            <VCol
+              v-for="(item, index) in orderItems"
+              :key="index"
+              cols="12"
+            >
+              <div class="item-row">
+                <VSelect
+                  v-model="item.product_id"
+                  class="item-field"
+                  label="Product"
+                  :items="productOptions"
+                  :disabled="productOptions.length === 0"
+                />
+
+                <VTextField
+                  v-model.number="item.quantity"
+                  class="qty-field"
+                  label="Qty"
+                  type="number"
+                  min="1"
+                />
+
+                <VBtn
+                  type="button"
+                  color="error"
+                  variant="text"
+                  @click="removeItemRow(index)"
+                >
+                  Remove
+                </VBtn>
+              </div>
             </VCol>
 
             <VCol
@@ -313,7 +362,7 @@ onMounted(fetchOrder)
               md="3"
             >
               <VTextField
-                :model-value="formatCurrency(form.subtotal)"
+                :model-value="formatCurrency(subtotal)"
                 label="Subtotal"
                 readonly
               />
@@ -324,7 +373,7 @@ onMounted(fetchOrder)
               md="3"
             >
               <VTextField
-                :model-value="formatCurrency(form.tax_amount)"
+                :model-value="formatCurrency(taxAmount)"
                 label="Tax"
                 readonly
               />
@@ -335,7 +384,7 @@ onMounted(fetchOrder)
               md="3"
             >
               <VTextField
-                :model-value="formatCurrency(form.service_charge)"
+                :model-value="formatCurrency(serviceCharge)"
                 label="Service Charge"
                 readonly
               />
@@ -346,7 +395,7 @@ onMounted(fetchOrder)
               md="3"
             >
               <VTextField
-                :model-value="formatCurrency(form.total)"
+                :model-value="formatCurrency(total)"
                 label="Total"
                 readonly
               />
@@ -422,18 +471,19 @@ onMounted(fetchOrder)
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  margin-block-end: 12px;
 }
 
-.items-table {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.empty-cell {
-  padding: 16px;
-  color: #6b7280;
-  text-align: center;
+.item-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 140px 100px;
 }
 
 .mb-4 {

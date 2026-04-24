@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Tables from '@/components/TableStatic.vue'
+import { useCategoryStore } from '@/stores'
 
-interface CategoryApiItem {
-  id: number
-  name: string
-  description: string
-  image_url: string | null
-  created_at: string
-}
-
-const API_URL = 'http://10.1.42.168:8000/categories/'
 const router = useRouter()
+const categoryStore = useCategoryStore()
+const {
+  cards,
+  deleting,
+  listError,
+  listLoading,
+  mutationError,
+  tableItems,
+} = storeToRefs(categoryStore)
 
 const headers = [
   { title: '#', key: 'id' },
@@ -22,82 +24,8 @@ const headers = [
   { title: 'Description', key: 'description' },
 ]
 
-const categories = ref<CategoryApiItem[]>([])
-const loading = ref(false)
-const errorMessage = ref('')
 const deleteDialog = ref(false)
 const deleteTarget = ref<{ id: number; name: string } | null>(null)
-const deleting = ref(false)
-
-const tableItems = computed(() => {
-  return categories.value.map(category => ({
-    id: category.id,
-    image_url: category.image_url,
-    name: category.name,
-    description: category.description,
-  }))
-})
-
-const cards = computed(() => {
-  const totalCategories = categories.value.length
-
-  const newCategories = categories.value.filter(category => {
-    const createdDate = new Date(category.created_at)
-    const ageInMs = Date.now() - createdDate.getTime()
-
-    return ageInMs <= 7 * 24 * 60 * 60 * 1000
-  }).length
-
-  return [
-    {
-      title: 'Total Categories',
-      value: totalCategories,
-      icon: 'mdi:package-variant',
-      color: '#3b82f6',
-    },
-    {
-      title: 'New Categories',
-      value: newCategories,
-      icon: 'mdi:new-box',
-      color: '#f59e0b',
-    },
-  ]
-})
-
-async function fetchCategories() {
-  loading.value = true
-  errorMessage.value = ''
-
-  try {
-    const response = await fetch(API_URL, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
-
-    if (!response.ok)
-      throw new Error(`Request failed with status ${response.status}`)
-
-    const data = await response.json()
-
-    if (Array.isArray(data))
-      categories.value = data
-    else if (data && Array.isArray(data.results))
-      categories.value = data.results
-    else if (data && Array.isArray(data.data))
-      categories.value = data.data
-    else
-      categories.value = []
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to fetch categories'
-    categories.value = []
-  }
-  finally {
-    loading.value = false
-  }
-}
 
 function handleView(item: { id: number }) {
   router.push(`/categories/view/${item.id}`)
@@ -121,33 +49,16 @@ async function confirmDelete() {
   if (!deleteTarget.value)
     return
 
-  deleting.value = true
+  const deleted = await categoryStore.deleteCategory(deleteTarget.value.id)
+  deleteDialog.value = false
 
-  try {
-    const response = await fetch(`${API_URL}${deleteTarget.value.id}/`, {
-      method: 'DELETE',
-      body: JSON.stringify({
-        category_id: deleteTarget.value.id,
-      }),
-    })
-
-    if (!response.ok)
-      throw new Error(`Delete failed with status ${response.status}`)
-
-    deleteDialog.value = false
+  if (deleted)
     deleteTarget.value = null
-    await fetchCategories()
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to delete category'
-    deleteDialog.value = false
-  }
-  finally {
-    deleting.value = false
-  }
 }
 
-onMounted(fetchCategories)
+onMounted(() => {
+  categoryStore.fetchCategories()
+})
 </script>
 
 <template>
@@ -174,17 +85,17 @@ onMounted(fetchCategories)
     </div>
 
     <p
-      v-if="loading"
+      v-if="listLoading"
       class="status-text"
     >
       Loading categories...
     </p>
 
     <p
-      v-else-if="errorMessage"
+      v-else-if="listError || mutationError"
       class="status-text error-text"
     >
-      {{ errorMessage }}
+      {{ listError || mutationError }}
     </p>
 
     <Tables
@@ -192,6 +103,7 @@ onMounted(fetchCategories)
       subtitle="Manage and view all categories"
       :headers="headers"
       :items="tableItems"
+      :search-keys="['id', 'name', 'description']"
       item-key="id"
       create-route="/categories/create"
       @view="handleView"

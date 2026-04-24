@@ -1,33 +1,14 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useCategoryStore, useProductStore } from '@/stores'
 
 const router = useRouter()
-
-interface CategoryApiItem {
-  id: number
-  name: string
-  description: string
-  image_url: string
-  created_at: string
-}
-
-interface ProductCreatedResponse {
-  id: number
-  name: string
-  description: string
-  category: string
-  price: number
-  stock: number
-  image_url: string
-  created_at: string
-}
-
-const PRODUCT_API_URL = 'http://10.1.42.168:8000/products/'
-const CATEGORY_API_URL = 'http://10.1.42.168:8000/categories/'
-
-const categoryOptions = ref<string[]>([])
-const categoryLoading = ref(false)
+const categoryStore = useCategoryStore()
+const productStore = useProductStore()
+const { categoryNames } = storeToRefs(categoryStore)
+const { mutationError, submitting } = storeToRefs(productStore)
 
 const form = reactive({
   name: '',
@@ -37,8 +18,6 @@ const form = reactive({
   stock: 0,
 })
 
-const loading = ref(false)
-const errorMessage = ref('')
 const successMessage = ref('')
 const imageFile = ref<File | null>(null)
 const imagePreviewUrl = ref('')
@@ -46,13 +25,13 @@ const imagePreviewUrl = ref('')
 function resetForm() {
   form.name = ''
   form.description = ''
-  form.category = categoryOptions.value[0] || ''
+  form.category = categoryNames.value[0] || ''
   form.price = 0
   form.stock = 0
-  errorMessage.value = ''
   successMessage.value = ''
   imageFile.value = null
   imagePreviewUrl.value = ''
+  productStore.clearMutationError()
 }
 
 function onImageChange(files: File | File[] | null) {
@@ -62,100 +41,30 @@ function onImageChange(files: File | File[] | null) {
   imagePreviewUrl.value = selectedFile ? URL.createObjectURL(selectedFile) : ''
 }
 
-async function fetchCategories() {
-  categoryLoading.value = true
-
-  try {
-    const response = await fetch(CATEGORY_API_URL, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    })
-
-    if (!response.ok)
-      throw new Error(`Failed to fetch categories: ${response.status}`)
-
-    const data = await response.json()
-    const categories = Array.isArray(data) ? data : []
-
-    categoryOptions.value = categories.map((category: CategoryApiItem) => category.name)
-
-    if (!form.category && categoryOptions.value.length > 0)
-      form.category = categoryOptions.value[0]
-  }
-  catch (error) {
-    categoryOptions.value = []
-    if (!errorMessage.value)
-      errorMessage.value = error instanceof Error ? error.message : 'Failed to fetch categories'
-  }
-  finally {
-    categoryLoading.value = false
-  }
-}
-
 async function submitForm() {
-  loading.value = true
-  errorMessage.value = ''
   successMessage.value = ''
 
-  try {
-    // Step 1: Create product with JSON
-    const response = await fetch(PRODUCT_API_URL, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: form.name,
-        description: form.description,
-        category: form.category,
-        price: Number(form.price),
-        stock: Number(form.stock),
-        image_url: '',
-      }),
-    })
+  const created = await productStore.createProduct({
+    name: form.name,
+    description: form.description,
+    category: form.category,
+    price: Number(form.price),
+    stock: Number(form.stock),
+    imageFile: imageFile.value,
+  })
 
-    if (!response.ok) {
-      const errorJson = await response.json().catch(() => null)
-      const detail = errorJson?.detail ?? `Status ${response.status}`
-      throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
-    }
-
-    const created: ProductCreatedResponse = await response.json()
-
-    // Step 2: Upload image separately if provided
-    if (imageFile.value) {
-      const imageFormData = new FormData()
-
-      imageFormData.append('image', imageFile.value, imageFile.value.name)
-
-      const imageResponse = await fetch(`http://10.1.42.168:8000/products/${created.id}/image`, {
-        method: 'PUT',
-        headers: { Accept: 'application/json' },
-        body: imageFormData,
-      })
-
-      if (!imageResponse.ok) {
-        const imageErrorJson = await imageResponse.json().catch(() => null)
-        const imageDetail = imageErrorJson?.detail ?? `Status ${imageResponse.status}`
-        throw new Error(typeof imageDetail === 'string' ? imageDetail : JSON.stringify(imageDetail))
-      }
-    }
-
+  if (created) {
     successMessage.value = 'Product created successfully.'
     resetForm()
     router.push('/product')
   }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to create product'
-  }
-  finally {
-    loading.value = false
-  }
 }
 
 onMounted(() => {
-  fetchCategories()
+  categoryStore.fetchCategories().then(() => {
+    if (!form.category && categoryNames.value.length > 0)
+      form.category = categoryNames.value[0]
+  })
 })
 </script>
 
@@ -167,7 +76,7 @@ onMounted(() => {
           Create Product
         </h1>
         <p class="page-subtitle">
-          Submit a new product to the API
+          Create a new product in local state
         </p>
       </div>
     </div>
@@ -182,7 +91,7 @@ onMounted(() => {
             >
               <VBtn
                 type="submit"
-                :loading="loading"
+                :loading="submitting"
               >
                 Create
               </VBtn>
@@ -215,9 +124,8 @@ onMounted(() => {
               <VSelect
                 v-model="form.category"
                 label="Category"
-                :items="categoryOptions"
-                :loading="categoryLoading"
-                :disabled="categoryLoading || categoryOptions.length === 0"
+                :items="categoryNames"
+                :disabled="categoryNames.length === 0"
               />
             </VCol>
 
@@ -277,11 +185,11 @@ onMounted(() => {
             </VCol>
 
             <VCol
-              v-if="errorMessage"
+              v-if="mutationError"
               cols="12"
             >
               <div class="status-message error-message">
-                {{ errorMessage }}
+                {{ mutationError }}
               </div>
             </VCol>
 

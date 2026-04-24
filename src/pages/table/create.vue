@@ -1,57 +1,36 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useTableStore } from '@/stores'
 
 const router = useRouter()
-
-const TABLE_API_URL = 'http://10.1.42.168:8000/tables/'
+const tableStore = useTableStore()
+const { mutationError, submitting } = storeToRefs(tableStore)
 
 const form = reactive({
   name: '',
 })
 
-const loading = ref(false)
-const errorMessage = ref('')
 const successMessage = ref('')
 
 function resetForm() {
   form.name = ''
-  errorMessage.value = ''
   successMessage.value = ''
+  tableStore.clearMutationError()
 }
 
 async function submitForm() {
-  loading.value = true
-  errorMessage.value = ''
   successMessage.value = ''
 
-  try {
-    const response = await fetch(TABLE_API_URL, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: form.name,
-      }),
-    })
+  const created = await tableStore.createTable({
+    name: form.name,
+  })
 
-    if (!response.ok) {
-      const errorJson = await response.json().catch(() => null)
-      const detail = errorJson?.detail ?? `Status ${response.status}`
-      throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
-    }
-
+  if (created) {
     successMessage.value = 'Table created successfully.'
     resetForm()
     router.push('/table')
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to create table'
-  }
-  finally {
-    loading.value = false
   }
 }
 </script>
@@ -79,7 +58,7 @@ async function submitForm() {
             >
               <VBtn
                 type="submit"
-                :loading="loading"
+                :loading="submitting"
               >
                 Create
               </VBtn>
@@ -104,11 +83,11 @@ async function submitForm() {
             </VCol>
 
             <VCol
-              v-if="errorMessage"
+              v-if="mutationError"
               cols="12"
             >
               <div class="status-message error-message">
-                {{ errorMessage }}
+                {{ mutationError }}
               </div>
             </VCol>
 

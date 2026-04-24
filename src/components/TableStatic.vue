@@ -35,6 +35,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  searchKeys: {
+    type: Array,
+    default: () => [],
+  },
   showCreateButton: {
     type: Boolean,
     default: true,
@@ -114,9 +118,13 @@ const filteredItems = computed(() => {
   if (!keyword)
     return displayItems.value
 
+  const searchKeys = props.searchKeys.length > 0
+    ? props.searchKeys
+    : resolvedHeaders.value.map(header => header.key)
+
   return displayItems.value.filter(item =>
-    resolvedHeaders.value.some(header =>
-      String(item[header.key] ?? '')
+    searchKeys.some(key =>
+      String(item[key] ?? '')
         .toLowerCase()
         .includes(keyword),
     ),

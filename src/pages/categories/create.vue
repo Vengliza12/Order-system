@@ -1,26 +1,18 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useCategoryStore } from '@/stores'
 
 const router = useRouter()
-
-const CATEGORY_API_URL = 'http://10.1.42.168:8000/categories/'
-
-interface CategoryCreatedResponse {
-  id: number
-  name: string
-  description: string
-  image_url: string
-  created_at: string
-}
+const categoryStore = useCategoryStore()
+const { mutationError, submitting } = storeToRefs(categoryStore)
 
 const form = reactive({
   name: '',
   description: '',
 })
 
-const loading = ref(false)
-const errorMessage = ref('')
 const successMessage = ref('')
 const imageFile = ref<File | null>(null)
 const imagePreviewUrl = ref('')
@@ -28,10 +20,10 @@ const imagePreviewUrl = ref('')
 function resetForm() {
   form.name = ''
   form.description = ''
-  errorMessage.value = ''
   successMessage.value = ''
   imageFile.value = null
   imagePreviewUrl.value = ''
+  categoryStore.clearMutationError()
 }
 
 function onImageChange(files: File | File[] | null) {
@@ -42,61 +34,18 @@ function onImageChange(files: File | File[] | null) {
 }
 
 async function submitForm() {
-  loading.value = true
-  errorMessage.value = ''
   successMessage.value = ''
 
-  try {
-    // Step 1: Create category with JSON
-    const response = await fetch(CATEGORY_API_URL, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: form.name,
-        description: form.description,
-        image_url: '',
-      }),
-    })
+  const created = await categoryStore.createCategory({
+    name: form.name,
+    description: form.description,
+    imageFile: imageFile.value,
+  })
 
-    if (!response.ok) {
-      const errorJson = await response.json().catch(() => null)
-      const detail = errorJson?.detail ?? `Status ${response.status}`
-      throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
-    }
-
-    const created: CategoryCreatedResponse = await response.json()
-
-    // Step 2: Upload image separately if provided
-    if (imageFile.value) {
-      const imageFormData = new FormData()
-
-      imageFormData.append('image', imageFile.value, imageFile.value.name)
-
-      const imageResponse = await fetch(`http://10.1.42.168:8000/categories/${created.id}/image`, {
-        method: 'PUT',
-        headers: { Accept: 'application/json' },
-        body: imageFormData,
-      })
-
-      if (!imageResponse.ok) {
-        const imageErrorJson = await imageResponse.json().catch(() => null)
-        const imageDetail = imageErrorJson?.detail ?? `Status ${imageResponse.status}`
-        throw new Error(typeof imageDetail === 'string' ? imageDetail : JSON.stringify(imageDetail))
-      }
-    }
-
+  if (created) {
     successMessage.value = 'Category created successfully.'
     resetForm()
     router.push('/categories')
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to create category'
-  }
-  finally {
-    loading.value = false
   }
 }
 </script>
@@ -109,7 +58,7 @@ async function submitForm() {
           Create Category
         </h1>
         <p class="page-subtitle">
-          Submit a new category to the API
+          Create a new category in local state
         </p>
       </div>
     </div>
@@ -124,7 +73,7 @@ async function submitForm() {
             >
               <VBtn
                 type="submit"
-                :loading="loading"
+                :loading="submitting"
               >
                 Create
               </VBtn>
@@ -180,11 +129,11 @@ async function submitForm() {
             </VCol>
 
             <VCol
-              v-if="errorMessage"
+              v-if="mutationError"
               cols="12"
             >
               <div class="status-message error-message">
-                {{ errorMessage }}
+                {{ mutationError }}
               </div>
             </VCol>
 

@@ -1,36 +1,15 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-
-interface OrderItemDetail {
-  id: number
-  product_id: number
-  product_name: string
-  quantity: number
-  unit_price: number
-  line_total: number
-}
-
-interface OrderDetail {
-  id: number
-  table_id: number
-  table_name: string
-  status: string
-  notes: string | null
-  subtotal: number
-  tax_amount: number
-  service_charge: number
-  total: number
-  invoice_number: string
-  items: OrderItemDetail[]
-  created_at: string
-}
+import { useOrderStore } from '@/stores'
 
 const route = useRoute()
 const router = useRouter()
+const orderStore = useOrderStore()
+const { detailError, detailLoading } = storeToRefs(orderStore)
 
 const orderId = computed(() => String(route.params.id ?? ''))
-const apiUrl = computed(() => `http://10.1.42.168:8000/orders/${orderId.value}`)
 
 const form = reactive({
   id: '',
@@ -46,62 +25,41 @@ const form = reactive({
   created_at: '',
 })
 
-const items = ref<OrderItemDetail[]>([])
-const loading = ref(false)
-const errorMessage = ref('')
+const items = ref<Array<{
+  id: number
+  product_id: number
+  product_name: string
+  quantity: number
+  unit_price: number
+  line_total: number
+}>>([])
 
 function formatCurrency(value: number) {
-  return `$${Number(value ?? 0).toFixed(2)}`
+  return orderStore.formatCurrency(value)
 }
 
 function formatDate(value: string) {
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime()))
-    return value
-
-  return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
+  return orderStore.formatCreatedAt(value)
 }
 
 async function fetchOrder() {
-  loading.value = true
-  errorMessage.value = ''
+  const order = await orderStore.fetchOrderById(orderId.value)
 
-  try {
-    const response = await fetch(apiUrl.value, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+  if (!order)
+    return
 
-    if (!response.ok)
-      throw new Error(`Request failed with status ${response.status}`)
-
-    const data: OrderDetail = await response.json()
-
-    form.id = String(data.id)
-    form.invoice_number = data.invoice_number
-    form.table_id = data.table_id
-    form.table_name = data.table_name
-    form.status = data.status
-    form.notes = data.notes ?? ''
-    form.subtotal = data.subtotal
-    form.tax_amount = data.tax_amount
-    form.service_charge = data.service_charge
-    form.total = data.total
-    form.created_at = data.created_at
-    items.value = data.items ?? []
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to fetch order'
-  }
-  finally {
-    loading.value = false
-  }
+  form.id = String(order.id)
+  form.invoice_number = order.invoice_number
+  form.table_id = order.table_id
+  form.table_name = order.table_name
+  form.status = order.status
+  form.notes = order.notes ?? ''
+  form.subtotal = order.subtotal
+  form.tax_amount = order.tax_amount
+  form.service_charge = order.service_charge
+  form.total = order.total
+  form.created_at = order.created_at
+  items.value = order.items ?? []
 }
 
 onMounted(fetchOrder)
@@ -123,17 +81,17 @@ onMounted(fetchOrder)
     <VCard class="form-card">
       <VCardText>
         <div
-          v-if="loading"
+          v-if="detailLoading"
           class="status-message"
         >
           Loading order...
         </div>
 
         <div
-          v-else-if="errorMessage"
+          v-else-if="detailError"
           class="status-message error-message"
         >
-          {{ errorMessage }}
+          {{ detailError }}
         </div>
 
         <VForm v-else>

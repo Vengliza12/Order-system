@@ -1,25 +1,15 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-
-interface CategoryDetail {
-  id: number
-  name: string
-  description: string
-  image_url: string | null
-  created_at: string
-}
+import { useCategoryStore } from '@/stores'
 
 const route = useRoute()
 const router = useRouter()
+const categoryStore = useCategoryStore()
+const { detailLoading, mutationError, submitting } = storeToRefs(categoryStore)
 
 const categoryId = computed(() => String(route.params.id ?? ''))
-const categoryApiUrl = computed(() => `http://10.1.42.168:8000/categories/${categoryId.value}`)
-const categoryImageApiUrl = computed(() => `http://10.1.42.168:8000/categories/${categoryId.value}/image`)
-
-const loading = ref(false)
-const submitting = ref(false)
-const errorMessage = ref('')
 const successMessage = ref('')
 const imageFile = ref<File | null>(null)
 const imagePreviewUrl = ref('')
@@ -39,87 +29,30 @@ function onImageChange(files: File | File[] | null) {
 }
 
 async function fetchCategory() {
-  loading.value = true
-  errorMessage.value = ''
+  const category = await categoryStore.fetchCategoryById(categoryId.value)
 
-  try {
-    const response = await fetch(categoryApiUrl.value, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+  if (!category)
+    return
 
-    if (!response.ok)
-      throw new Error(`Failed to fetch category: ${response.status}`)
-
-    const data: CategoryDetail = await response.json()
-
-    form.id = String(data.id)
-    form.name = data.name
-    form.description = data.description
-    form.image_url = data.image_url ?? ''
-    imagePreviewUrl.value = data.image_url ?? ''
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to fetch category'
-  }
-  finally {
-    loading.value = false
-  }
+  form.id = String(category.id)
+  form.name = category.name
+  form.description = category.description
+  form.image_url = category.image_url ?? ''
+  imagePreviewUrl.value = category.image_url ?? ''
 }
 
 async function submitForm() {
-  submitting.value = true
-  errorMessage.value = ''
   successMessage.value = ''
 
-  try {
-    const response = await fetch(categoryApiUrl.value, {
-      method: 'PUT',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: form.name,
-        description: form.description,
-        image_url: form.image_url,
-      }),
-    })
+  const updated = await categoryStore.updateCategory(categoryId.value, {
+    name: form.name,
+    description: form.description,
+    imageFile: imageFile.value,
+  })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(errorText || `Request failed with status ${response.status}`)
-    }
-
-    if (imageFile.value) {
-      const imageFormData = new FormData()
-
-      imageFormData.append('image', imageFile.value, imageFile.value.name)
-
-      const imageResponse = await fetch(categoryImageApiUrl.value, {
-        method: 'PUT',
-        headers: {
-          Accept: 'application/json',
-        },
-        body: imageFormData,
-      })
-
-      if (!imageResponse.ok) {
-        const imageErrorText = await imageResponse.text()
-        throw new Error(imageErrorText || `Image update failed with status ${imageResponse.status}`)
-      }
-    }
-
+  if (updated) {
     successMessage.value = 'Category updated successfully.'
     router.push('/categories')
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to update category'
-  }
-  finally {
-    submitting.value = false
   }
 }
 
@@ -142,20 +75,11 @@ onMounted(fetchCategory)
     <VCard class="form-card">
       <VCardText>
         <div
-          v-if="loading"
+          v-if="detailLoading"
           class="status-message"
         >
           Loading category...
         </div>
-
-        <!--
-          <div
-          v-else-if="errorMessage && !form.id"
-          class="status-message error-message"
-          >
-          {{ errorMessage }}
-          </div>
-        -->
 
         <VForm
           v-else
@@ -233,11 +157,11 @@ onMounted(fetchCategory)
             </VCol>
 
             <VCol
-              v-if="errorMessage && form.id"
+              v-if="mutationError && form.id"
               cols="12"
             >
               <div class="status-message error-message">
-                {{ errorMessage }}
+                {{ mutationError }}
               </div>
             </VCol>
 

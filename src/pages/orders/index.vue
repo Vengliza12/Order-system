@@ -1,40 +1,27 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useOrderStore } from '@/stores'
 import Tables from '@/components/TableStatic.vue'
-
-interface OrderItemApi {
-  id: number
-  product_id: number
-  product_name: string
-  quantity: number
-  unit_price: number
-  line_total: number
-}
-
-interface OrderApiItem {
-  id: number
-  table_id: number
-  table_name: string
-  status: string
-  notes: string | null
-  subtotal: number
-  tax_amount: number
-  service_charge: number
-  total: number
-  invoice_number: string
-  items: OrderItemApi[]
-  created_at: string
-}
 
 interface DeleteTarget {
   id: number
   invoice_number: string
 }
 
-const API_URL = 'http://10.1.42.168:8000/orders/'
 const router = useRouter()
+const orderStore = useOrderStore()
+
+const {
+  cards,
+  deleting,
+  listError,
+  listLoading,
+  mutationError,
+  tableItems,
+} = storeToRefs(orderStore)
 
 const headers = [
   { title: '#', key: 'id' },
@@ -47,115 +34,8 @@ const headers = [
   { title: 'Total', key: 'total' },
 ]
 
-const orders = ref<OrderApiItem[]>([])
-const loading = ref(false)
-const errorMessage = ref('')
 const deleteDialog = ref(false)
 const deleteTarget = ref<DeleteTarget | null>(null)
-const deleting = ref(false)
-
-function formatCurrency(value: number) {
-  return `$${Number(value ?? 0).toFixed(2)}`
-}
-
-function formatDate(value: string) {
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime()))
-    return value
-
-  return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
-}
-
-const tableItems = computed(() => {
-  return orders.value.map(order => ({
-    id: order.id,
-    invoice_number: order.invoice_number,
-    table_name: order.table_name,
-    status: order.status,
-    product_codes: order.items.map(item => item.product_id).join(', '),
-    product_names: order.items.map(item => item.product_name).join(', '),
-    total_quantity: order.items.reduce((sum, item) => sum + item.quantity, 0),
-    total: formatCurrency(order.total),
-    created_at: formatDate(order.created_at),
-  }))
-})
-
-const cards = computed(() => {
-  const totalOrders = orders.value.length
-  const pendingOrders = orders.value.filter(order => order.status === 'pending').length
-
-  const totalRevenue = orders.value.reduce((sum, order) => sum + Number(order.total ?? 0), 0)
-
-  const totalItems = orders.value.reduce((sum, order) => {
-    return sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0)
-  }, 0)
-
-  return [
-    {
-      title: 'Total Orders',
-      value: totalOrders,
-      icon: 'mdi:receipt-text-outline',
-      color: '#3b82f6',
-    },
-    {
-      title: 'Pending Orders',
-      value: pendingOrders,
-      icon: 'mdi:clock-outline',
-      color: '#f59e0b',
-    },
-    {
-      title: 'Items Sold',
-      value: totalItems,
-      icon: 'mdi:food-outline',
-      color: '#22c55e',
-    },
-    {
-      title: 'Revenue',
-      value: formatCurrency(totalRevenue),
-      icon: 'mdi:cash-multiple',
-      color: '#8b5cf6',
-    },
-  ]
-})
-
-async function fetchOrders() {
-  loading.value = true
-  errorMessage.value = ''
-
-  try {
-    const response = await fetch(API_URL, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
-
-    if (!response.ok)
-      throw new Error(`Request failed with status ${response.status}`)
-
-    const data = await response.json()
-
-    if (Array.isArray(data))
-      orders.value = data
-    else if (data && Array.isArray(data.results))
-      orders.value = data.results
-    else if (data && Array.isArray(data.data))
-      orders.value = data.data
-    else
-      orders.value = []
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to fetch orders'
-    orders.value = []
-  }
-  finally {
-    loading.value = false
-  }
-}
 
 function handleView(item: { id: number }) {
   router.push(`/orders/view/${item.id}`)
@@ -179,33 +59,17 @@ async function confirmDelete() {
   if (!deleteTarget.value)
     return
 
-  deleting.value = true
+  const deleted = await orderStore.deleteOrder(deleteTarget.value.id)
 
-  try {
-    const response = await fetch(`${API_URL}${deleteTarget.value.id}/`, {
-      method: 'DELETE',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+  deleteDialog.value = false
 
-    if (!response.ok)
-      throw new Error(`Delete failed with status ${response.status}`)
-
-    deleteDialog.value = false
+  if (deleted)
     deleteTarget.value = null
-    await fetchOrders()
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to delete order'
-    deleteDialog.value = false
-  }
-  finally {
-    deleting.value = false
-  }
 }
 
-onMounted(fetchOrders)
+onMounted(() => {
+  orderStore.fetchOrders()
+})
 </script>
 
 <template>
@@ -232,17 +96,17 @@ onMounted(fetchOrders)
     </div>
 
     <p
-      v-if="loading"
+      v-if="listLoading"
       class="status-text"
     >
       Loading orders...
     </p>
 
     <p
-      v-else-if="errorMessage"
+      v-else-if="listError || mutationError"
       class="status-text error-text"
     >
-      {{ errorMessage }}
+      {{ listError || mutationError }}
     </p>
 
     <Tables
@@ -250,8 +114,8 @@ onMounted(fetchOrders)
       subtitle="Manage and view all order headers with product codes"
       :headers="headers"
       :items="tableItems"
+      :search-keys="['id', 'invoice_number', 'table_name', 'product_names']"
       item-key="id"
-      :show-create-button="false"
       create-label="Create"
       create-route="/orders/create"
       @view="handleView"

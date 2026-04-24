@@ -1,20 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-
-interface CategoryDetail {
-  id: number
-  name: string
-  description: string
-  image_url: string | null
-  created_at: string
-}
+import { useCategoryStore } from '@/stores'
 
 const route = useRoute()
 const router = useRouter()
+const categoryStore = useCategoryStore()
+const { detailError, detailLoading } = storeToRefs(categoryStore)
 
 const categoryId = computed(() => String(route.params.id ?? ''))
-const apiUrl = computed(() => `http://10.1.42.168:8000/categories/${categoryId.value}`)
 
 const form = reactive({
   id: '',
@@ -23,37 +18,16 @@ const form = reactive({
   image_url: '',
 })
 
-const loading = ref(false)
-const errorMessage = ref('')
-
 async function fetchCategory() {
-  loading.value = true
-  errorMessage.value = ''
+  const category = await categoryStore.fetchCategoryById(categoryId.value)
 
-  try {
-    const response = await fetch(apiUrl.value, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+  if (!category)
+    return
 
-    if (!response.ok)
-      throw new Error(`Request failed with status ${response.status}`)
-
-    const data: CategoryDetail = await response.json()
-
-    form.id = String(data.id)
-    form.name = data.name
-    form.description = data.description
-    form.image_url = data.image_url ?? ''
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Failed to fetch category'
-  }
-  finally {
-    loading.value = false
-  }
+  form.id = String(category.id)
+  form.name = category.name
+  form.description = category.description
+  form.image_url = category.image_url ?? ''
 }
 
 onMounted(fetchCategory)
@@ -75,17 +49,17 @@ onMounted(fetchCategory)
     <VCard class="form-card">
       <VCardText>
         <div
-          v-if="loading"
+          v-if="detailLoading"
           class="status-message"
         >
           Loading category...
         </div>
 
         <div
-          v-else-if="errorMessage"
+          v-else-if="detailError"
           class="status-message error-message"
         >
-          {{ errorMessage }}
+          {{ detailError }}
         </div>
 
         <VForm v-else>
