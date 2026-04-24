@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import Tables from '@/components/TableStatic.vue'
 import { Icon } from '@iconify/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import Tables from '@/components/TableStatic.vue'
 
 interface CategoryApiItem {
   id: number
@@ -12,7 +12,7 @@ interface CategoryApiItem {
   created_at: string
 }
 
-const API_URL = 'http://localhost:8000/categories/'
+const API_URL = 'http://10.1.42.168:8000/categories/'
 const router = useRouter()
 
 const headers = [

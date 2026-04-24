@@ -17,7 +17,7 @@ const route = useRoute()
 const router = useRouter()
 
 const productId = computed(() => String(route.params.id ?? ''))
-const apiUrl = computed(() => `http://127.0.0.1:8000/products/${productId.value}`)
+const apiUrl = computed(() => `http://10.1.42.168:8000/products/${productId.value}`)
 
 const form = reactive({
   id: '',
@@ -256,11 +256,13 @@ onMounted(fetchProduct)
 
 .detail-id-value {
   /* border-radius: 999px; */
+
   /* background: #eff6ff; */
   color: #6e6e6e;
   font-size: 16px;
   font-weight: 700;
   padding-block: 6px;
+
   /* padding-inline: 12px; */
 }
 

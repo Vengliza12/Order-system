@@ -25,9 +25,9 @@ const route = useRoute()
 const router = useRouter()
 
 const productId = computed(() => String(route.params.id ?? ''))
-const productApiUrl = computed(() => `http://localhost:8000/products/${productId.value}`)
-const productImageApiUrl = computed(() => `http://localhost:8000/products/${productId.value}/image`)
-const categoryApiUrl = 'http://localhost:8000/categories/'
+const productApiUrl = computed(() => `http://10.1.42.168:8000/products/${productId.value}`)
+const productImageApiUrl = computed(() => `http://10.1.42.168:8000/products/${productId.value}/image`)
+const categoryApiUrl = 'http://10.1.42.168:8000/categories/'
 
 const categoryOptions = ref<string[]>([])
 const categoryLoading = ref(false)

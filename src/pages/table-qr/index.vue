@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import Tables from '@/components/TableStatic.vue'
 import { Icon } from '@iconify/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import Tables from '@/components/TableStatic.vue'
 
 interface ProductApiItem {
   id: number
@@ -15,7 +15,7 @@ interface ProductApiItem {
   created_at: string
 }
 
-const API_URL = 'http://127.0.0.1:8000/products/'
+const API_URL = 'http://10.1.42.168:8000/products/'
 const router = useRouter()
 
 const headers = [
@@ -31,7 +31,7 @@ const products = ref<ProductApiItem[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
 const deleteDialog = ref(false)
-const deleteTarget = ref<{ id: number, name: string } | null>(null)
+const deleteTarget = ref<{ id: number; name: string } | null>(null)
 const deleting = ref(false)
 
 const tableItems = computed(() => {
@@ -142,7 +142,7 @@ function handleEdit(item: { id: number }) {
   router.push(`/product/edit/${item.id}`)
 }
 
-async function handleDelete(item: { id: number, name: string }) {
+async function handleDelete(item: { id: number; name: string }) {
   deleteTarget.value = item
   deleteDialog.value = true
 }

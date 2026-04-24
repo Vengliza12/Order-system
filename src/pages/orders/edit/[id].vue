@@ -32,8 +32,8 @@ const route = useRoute()
 const router = useRouter()
 
 const orderId = computed(() => String(route.params.id ?? ''))
-const apiUrl = computed(() => `http://127.0.0.1:8000/orders/${orderId.value}`)
-const statusApiUrl = computed(() => `http://127.0.0.1:8000/orders/${orderId.value}/status`)
+const apiUrl = computed(() => `http://10.1.42.168:8000/orders/${orderId.value}`)
+const statusApiUrl = computed(() => `http://10.1.42.168:8000/orders/${orderId.value}/status`)
 
 const form = reactive({
   id: '',

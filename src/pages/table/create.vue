@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-const TABLE_API_URL = 'http://localhost:8000/tables/'
+const TABLE_API_URL = 'http://10.1.42.168:8000/tables/'
 
 const form = reactive({
   name: '',

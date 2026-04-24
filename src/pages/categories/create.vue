@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-const CATEGORY_API_URL = 'http://localhost:8000/categories/'
+const CATEGORY_API_URL = 'http://10.1.42.168:8000/categories/'
 
 interface CategoryCreatedResponse {
   id: number
@@ -75,7 +75,7 @@ async function submitForm() {
 
       imageFormData.append('image', imageFile.value, imageFile.value.name)
 
-      const imageResponse = await fetch(`http://localhost:8000/categories/${created.id}/image`, {
+      const imageResponse = await fetch(`http://10.1.42.168:8000/categories/${created.id}/image`, {
         method: 'PUT',
         headers: { Accept: 'application/json' },
         body: imageFormData,

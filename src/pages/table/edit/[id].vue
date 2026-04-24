@@ -15,7 +15,7 @@ const route = useRoute()
 const router = useRouter()
 
 const tableId = computed(() => String(route.params.id ?? ''))
-const apiUrl = computed(() => `http://127.0.0.1:8000/tables/${tableId.value}`)
+const apiUrl = computed(() => `http://10.1.42.168:8000/tables/${tableId.value}`)
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -32,7 +32,7 @@ const form = reactive({
 })
 
 const qrImageUrl = computed(() => {
-  return form.code ? `http://127.0.0.1:8000/tables/qr/${form.code}` : ''
+  return form.code ? `http://10.1.42.168:8000/tables/qr/${form.code}` : ''
 })
 
 function formatDate(value: string) {

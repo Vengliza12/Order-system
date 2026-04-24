@@ -18,7 +18,7 @@ interface DeleteTarget {
   name: string
 }
 
-const API_URL = 'http://localhost:8000/tables/'
+const API_URL = 'http://10.1.42.168:8000/tables/'
 const router = useRouter()
 
 const headers = [
@@ -52,7 +52,7 @@ function formatDate(value: string) {
 }
 
 function getQrImageUrl(code: string) {
-  return `http://127.0.0.1:8000/tables/qr/${code}`
+  return `http://10.1.42.168:8000/tables/qr/${code}`
 }
 
 const tableItems = computed(() => {

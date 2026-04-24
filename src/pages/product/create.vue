@@ -23,8 +23,8 @@ interface ProductCreatedResponse {
   created_at: string
 }
 
-const PRODUCT_API_URL = 'http://localhost:8000/products/'
-const CATEGORY_API_URL = 'http://localhost:8000/categories/'
+const PRODUCT_API_URL = 'http://10.1.42.168:8000/products/'
+const CATEGORY_API_URL = 'http://10.1.42.168:8000/categories/'
 
 const categoryOptions = ref<string[]>([])
 const categoryLoading = ref(false)
@@ -129,7 +129,7 @@ async function submitForm() {
 
       imageFormData.append('image', imageFile.value, imageFile.value.name)
 
-      const imageResponse = await fetch(`http://localhost:8000/products/${created.id}/image`, {
+      const imageResponse = await fetch(`http://10.1.42.168:8000/products/${created.id}/image`, {
         method: 'PUT',
         headers: { Accept: 'application/json' },
         body: imageFormData,

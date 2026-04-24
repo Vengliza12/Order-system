@@ -33,7 +33,7 @@ interface DeleteTarget {
   invoice_number: string
 }
 
-const API_URL = 'http://localhost:8000/orders/'
+const API_URL = 'http://10.1.42.168:8000/orders/'
 const router = useRouter()
 
 const headers = [

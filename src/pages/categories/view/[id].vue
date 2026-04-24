@@ -14,7 +14,7 @@ const route = useRoute()
 const router = useRouter()
 
 const categoryId = computed(() => String(route.params.id ?? ''))
-const apiUrl = computed(() => `http://127.0.0.1:8000/categories/${categoryId.value}`)
+const apiUrl = computed(() => `http://10.1.42.168:8000/categories/${categoryId.value}`)
 
 const form = reactive({
   id: '',
