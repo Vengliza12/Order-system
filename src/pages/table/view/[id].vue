@@ -1,4 +1,4 @@
-<!-- <script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -261,4 +261,4 @@ onMounted(fetchTable)
   justify-content: flex-end;
   gap: 12px;
 }
-</style> -->
+</style>
